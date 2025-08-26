@@ -12,12 +12,12 @@
           "package_name": "com.antoineterrade.boite_a_livre"
         }
       },
-             "oauth_client": [
-         {
-           "client_id": "961144753286-2epnfcuopkdu0eqa3u034u7de2t22o4h.apps.googleusercontent.com",
-           "client_type": 3
-         }
-       ],
+      "oauth_client": [
+        {
+          "client_id": "144616307187-70ultahvt154eooavf90delgqlu6e79e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyClTIvHOOSS1H9WDDr81oXK_UdQD_CPvts"
@@ -26,11 +26,18 @@
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
-           {
-             "client_id": "961144753286-2epnfcuopkdu0eqa3u034u7de2t22o4h.apps.googleusercontent.com",
-             "client_type": 3
-           }
-         ]
+            {
+              "client_id": "144616307187-70ultahvt154eooavf90delgqlu6e79e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "144616307187-rhilemabn6jfnl6kqqqnpj7hogpt5pnh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.antoineterrade.boite-a-livre"
+              }
+            }
+          ]
         }
       }
     }

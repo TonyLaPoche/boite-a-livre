@@ -1,4 +1,4 @@
-package com.example.boite_a_livre
+package com.antoineterrade.boite_a_livre
 
 import io.flutter.embedding.android.FlutterActivity
 
