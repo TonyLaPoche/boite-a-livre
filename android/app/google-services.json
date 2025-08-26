@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "144616307187",
+    "project_id": "boite-a-livre-dc929",
+    "storage_bucket": "boite-a-livre-dc929.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144616307187:android:f64e1a444df32e20777a86",
+        "android_client_info": {
+          "package_name": "com.antoineterrade.boite_a_livre"
+        }
+      },
+             "oauth_client": [
+         {
+           "client_id": "961144753286-2epnfcuopkdu0eqa3u034u7de2t22o4h.apps.googleusercontent.com",
+           "client_type": 3
+         }
+       ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClTIvHOOSS1H9WDDr81oXK_UdQD_CPvts"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+           {
+             "client_id": "961144753286-2epnfcuopkdu0eqa3u034u7de2t22o4h.apps.googleusercontent.com",
+             "client_type": 3
+           }
+         ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
