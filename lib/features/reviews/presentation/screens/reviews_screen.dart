@@ -18,12 +18,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadRatings();
+    // Ne pas charger automatiquement pour éviter les crashes
+    // L'utilisateur peut rafraîchir manuellement si besoin
   }
 
   Future<void> _loadRatings() async {
-    final provider = Provider.of<BookBoxProvider>(context, listen: false);
-    await provider.loadBookBoxes(); // Refresh pour avoir les derniers ratings
+    // Méthode vide pour éviter les crashes
+    // Les données se rafraîchissent avec le bouton 🔄 de la carte
   }
 
   @override

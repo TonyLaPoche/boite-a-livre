@@ -4,6 +4,7 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/book_box_provider.dart';
 import '../../../../core/services/user_service.dart';
 import '../../../../core/models/user_profile.dart';
+import '../../../../core/models/book_box.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -59,6 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final user = authProvider.user;
           
                 final myBookBoxes = bookBoxProvider.bookBoxes.where((box) => box.createdBy == user?.uid).toList();
+                final myReportedBookBoxes = myBookBoxes.where((box) => box.status == BookBoxStatus.reported).toList();
                 final myRatingsCount = bookBoxProvider.bookBoxes
                     .expand((box) => box.ratings)
                     .where((rating) => rating.userId == user?.uid)
@@ -86,6 +88,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       
                       // Mes boîtes à livres créées
                       _buildMyBookBoxesSection(myBookBoxes),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Section modération (si j'ai des BookBox signalées)
+                      if (myReportedBookBoxes.isNotEmpty) ...[
+                        _buildModerationSection(myReportedBookBoxes),
+                        const SizedBox(height: 24),
+                      ],
                       
                       const SizedBox(height: 32),
                       
@@ -374,5 +384,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     nameController.dispose();
+  }
+
+  Widget _buildModerationSection(List myReportedBookBoxes) {
+    return Card(
+      color: Colors.red[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.red[700]),
+                const SizedBox(width: 12),
+                Text(
+                  'Modération requise (${myReportedBookBoxes.length})',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.red[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Ces boîtes à livres ont été signalées et nécessitent votre attention:',
+              style: TextStyle(color: Colors.red[600]),
+            ),
+            const SizedBox(height: 16),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: myReportedBookBoxes.length,
+              separatorBuilder: (context, index) => const Divider(),
+              itemBuilder: (context, index) {
+                final bookBox = myReportedBookBoxes[index];
+                final latestReport = bookBox.reports.isNotEmpty ? bookBox.reports.last : null;
+                
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber, color: Colors.red[600], size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              bookBox.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (latestReport != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Raison: ${_getReportReasonText(latestReport.reason)}',
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                        if (latestReport.description != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Description: ${latestReport.description}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _revalidateBookBox(bookBox.id),
+                              icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                              label: const Text('Revalider', style: TextStyle(color: Colors.green)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.green),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _deleteBookBox(bookBox),
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.red),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getReportReasonText(ReportReason reason) {
+    switch (reason) {
+      case ReportReason.duplicate:
+        return 'Lieu en double';
+      case ReportReason.notFound:
+        return 'Boîte inexistante';
+      case ReportReason.inappropriate:
+        return 'Contenu inapproprié';
+      case ReportReason.wrongLocation:
+        return 'Mauvaise localisation';
+      case ReportReason.damaged:
+        return 'Boîte endommagée';
+      case ReportReason.other:
+        return 'Autre raison';
+    }
+  }
+
+  Future<void> _revalidateBookBox(String bookBoxId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revalider la boîte à livres'),
+        content: const Text(
+          'Êtes-vous sûr que cette boîte à livres est correcte et doit rester visible ?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Revalider'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await Provider.of<BookBoxProvider>(context, listen: false)
+          .revalidateBookBox(bookBoxId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success 
+                ? 'Boîte à livres revalidée ! Retournez sur la carte pour voir les changements.'
+                : 'Erreur lors de la revalidation'),
+            backgroundColor: success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteBookBox(bookBox) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer définitivement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Êtes-vous sûr de vouloir supprimer "${bookBox.name}" ?'),
+            const SizedBox(height: 8),
+            const Text(
+              'Cette action est irréversible et supprimera également tous les avis associés.',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await Provider.of<BookBoxProvider>(context, listen: false)
+          .deleteBookBox(bookBox.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success 
+                ? 'Boîte à livres supprimée définitivement ! Retournez sur la carte pour voir les changements.'
+                : 'Erreur lors de la suppression'),
+            backgroundColor: success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 }

@@ -20,6 +20,7 @@ class BookBoxProvider extends ChangeNotifier {
   List<BookBox> _bookBoxes = [];
   bool _isLoading = false;
   String? _error;
+  bool _isDisposed = false;
 
   List<BookBox> get bookBoxes => _bookBoxes;
   bool get isLoading => _isLoading;
@@ -28,6 +29,7 @@ class BookBoxProvider extends ChangeNotifier {
 
   // Charger toutes les boîtes à livres
   Future<void> loadBookBoxes() async {
+    if (_isDisposed) return;
     _setLoading(true);
     _clearError();
 
@@ -280,15 +282,15 @@ class BookBoxProvider extends ChangeNotifier {
   }
 
   void _setLoading(bool loading) {
+    if (_isDisposed) return;
     if (_isLoading != loading) {
       _isLoading = loading;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+      notifyListeners();
     }
   }
 
   void _setError(String error) {
+    if (_isDisposed) return;
     _error = error;
     notifyListeners();
   }
@@ -300,6 +302,21 @@ class BookBoxProvider extends ChangeNotifier {
   void clearError() {
     _clearError();
     notifyListeners();
+  }
+
+  void _safeReloadBookBoxes() {
+    if (_isDisposed) return;
+    Future.microtask(() {
+      if (!_isDisposed) {
+        loadBookBoxes();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 
   // Voter sur un avis (upvote/downvote)
@@ -338,8 +355,8 @@ class BookBoxProvider extends ChangeNotifier {
         'downVotes': downVotes,
       });
 
-      // Mettre à jour localement
-      await loadBookBoxes();
+      // Pas de rechargement automatique pour éviter les crashes
+      // L'utilisateur peut rafraîchir manuellement
       
       return true;
     } catch (e) {
@@ -365,8 +382,8 @@ class BookBoxProvider extends ChangeNotifier {
         'comment': newComment,
       });
 
-      // Mettre à jour localement
-      await loadBookBoxes();
+      // Pas de rechargement automatique pour éviter les crashes
+      // L'utilisateur peut rafraîchir manuellement
       
       return true;
     } catch (e) {
@@ -385,8 +402,113 @@ class BookBoxProvider extends ChangeNotifier {
     try {
       await _firestore.collection('ratings').doc(ratingId).delete();
 
-      // Mettre à jour localement
-      await loadBookBoxes();
+      // Pas de rechargement automatique pour éviter les crashes
+      // L'utilisateur peut rafraîchir manuellement
+      
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la suppression: $e');
+      return false;
+    }
+  }
+
+  // Signaler une BookBox
+  Future<bool> reportBookBox({
+    required String bookBoxId,
+    required ReportReason reason,
+    String? description,
+  }) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté pour signaler');
+      return false;
+    }
+
+    try {
+      // Vérifier si l'utilisateur a déjà signalé cette BookBox
+      final bookBoxDoc = await _firestore.collection('bookBoxes').doc(bookBoxId).get();
+      if (!bookBoxDoc.exists) {
+        _setError('BookBox introuvable');
+        return false;
+      }
+
+      final bookBox = BookBox.fromDocument(bookBoxDoc);
+      final hasAlreadyReported = bookBox.reports.any((report) => report.reportedBy == currentUser!.uid);
+      
+      if (hasAlreadyReported) {
+        _setError('Vous avez déjà signalé cette boîte à livres');
+        return false;
+      }
+
+      // Créer le rapport d'incident
+      final reportId = _uuid.v4();
+      final report = ReportIncident(
+        id: reportId,
+        reportedBy: currentUser!.uid,
+        reason: reason,
+        description: description,
+        reportedAt: DateTime.now(),
+      );
+
+      // Mettre à jour la BookBox avec le rapport et changer le statut
+      await _firestore.collection('bookBoxes').doc(bookBoxId).update({
+        'status': BookBoxStatus.reported.name,
+        'reports': FieldValue.arrayUnion([report.toMap()]),
+      });
+
+      // Pas de rechargement automatique pour éviter les crashes
+      // L'utilisateur peut rafraîchir manuellement
+      
+      return true;
+    } catch (e) {
+      _setError('Erreur lors du signalement: $e');
+      return false;
+    }
+  }
+
+  // Revalider une BookBox signalée (pour le propriétaire)
+  Future<bool> revalidateBookBox(String bookBoxId) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté');
+      return false;
+    }
+
+    try {
+      await _firestore.collection('bookBoxes').doc(bookBoxId).update({
+        'status': BookBoxStatus.verified.name,
+      });
+
+      // Pas de rechargement automatique pour éviter les crashes
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la revalidation: $e');
+      return false;
+    }
+  }
+
+  // Supprimer définitivement une BookBox (pour le propriétaire)
+  Future<bool> deleteBookBox(String bookBoxId) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté');
+      return false;
+    }
+
+    try {
+      // Supprimer les ratings associés
+      final ratingsQuery = await _firestore
+          .collection('ratings')
+          .where('bookBoxId', isEqualTo: bookBoxId)
+          .get();
+
+      final batch = _firestore.batch();
+      for (final doc in ratingsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Supprimer la BookBox
+      batch.delete(_firestore.collection('bookBoxes').doc(bookBoxId));
+      
+      await batch.commit();
+      // Pas de rechargement automatique pour éviter les crashes
       
       return true;
     } catch (e) {

@@ -4,7 +4,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/providers/book_box_provider.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/models/book_box.dart';
 import '../widgets/add_book_box_form.dart';
 import '../../../reviews/presentation/screens/reviews_screen.dart';
 
@@ -112,11 +114,18 @@ class _MapScreenState extends State<MapScreen> {
                 : null,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 28),
             onPressed: () {
               _loadCurrentLocation();
               _loadBookBoxes();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🔄 Données actualisées !'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
+            tooltip: 'Actualiser les données',
           ),
         ],
       ),
@@ -131,8 +140,9 @@ class _MapScreenState extends State<MapScreen> {
                 ],
               ),
             )
-          : Consumer<BookBoxProvider>(
-              builder: (context, provider, child) {
+          : Consumer2<BookBoxProvider, AuthProvider>(
+              builder: (context, provider, authProvider, child) {
+                final currentUserId = authProvider.user?.uid;
                 return Stack(
                   children: [
                     FlutterMap(
@@ -181,33 +191,17 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                 ),
                               ),
-                            // Marqueurs des boîtes à livres
-                            ...provider.bookBoxes.map(
+                            // Marqueurs des boîtes à livres (filtrées selon statut)
+                            ...provider.bookBoxes
+                                .where((bookBox) => _shouldShowBookBox(bookBox, currentUserId))
+                                .map(
                               (bookBox) => Marker(
                                 point: LatLng(bookBox.latitude, bookBox.longitude),
                                 width: 50,
                                 height: 50,
                                 child: GestureDetector(
                                   onTap: () => _showBookBoxDetails(bookBox),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.menu_book,
-                                      color: Colors.white,
-                                      size: 28,
-                                    ),
-                                  ),
+                                  child: _buildBookBoxMarker(bookBox, currentUserId),
                                 ),
                               ),
                             ),
@@ -311,6 +305,30 @@ class _MapScreenState extends State<MapScreen> {
               ],
             ),
             const SizedBox(height: 8),
+            // Bouton signaler (seulement si ce n'est pas ma BookBox)
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                final isMyBookBox = bookBox.createdBy == authProvider.user?.uid;
+                if (isMyBookBox) return const SizedBox.shrink();
+                
+                return Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showReportDialog(bookBox),
+                        icon: const Icon(Icons.flag_outlined, color: Colors.red),
+                        label: const Text('Signaler un problème', style: TextStyle(color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                );
+              },
+            ),
             SizedBox(
               width: double.infinity,
               child: TextButton(
@@ -384,7 +402,10 @@ class _MapScreenState extends State<MapScreen> {
                 Navigator.pop(context);
                 if (success) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Note ajoutée avec succès!')),
+                    const SnackBar(
+                      content: Text('Note ajoutée ! Appuyez sur 🔄 pour voir votre avis.'),
+                      duration: Duration(seconds: 3),
+                    ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -398,5 +419,182 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
     );
+  }
+
+  // Détermine si une BookBox doit être affichée selon son statut
+  bool _shouldShowBookBox(BookBox bookBox, String? currentUserId) {
+    switch (bookBox.status) {
+      case BookBoxStatus.normal:
+      case BookBoxStatus.verified:
+        return true; // Toujours visible
+      case BookBoxStatus.reported:
+        // Visible seulement pour le propriétaire
+        return bookBox.createdBy == currentUserId;
+    }
+  }
+
+  // Construit le marqueur selon le type de BookBox
+  Widget _buildBookBoxMarker(BookBox bookBox, String? currentUserId) {
+    final isMyBookBox = bookBox.createdBy == currentUserId;
+    final isReported = bookBox.status == BookBoxStatus.reported;
+    
+    // Déterminer couleur et icône
+    Color markerColor;
+    IconData markerIcon;
+    
+    if (isReported) {
+      markerColor = Colors.red;
+      markerIcon = Icons.warning;
+    } else if (isMyBookBox) {
+      markerColor = Colors.green;
+      markerIcon = Icons.home;
+    } else {
+      markerColor = Colors.orange;
+      markerIcon = Icons.menu_book;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: markerColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(
+        markerIcon,
+        color: Colors.white,
+        size: 28,
+      ),
+    );
+  }
+
+  // Dialog de signalement d'une BookBox
+  void _showReportDialog(BookBox bookBox) {
+    // Fermer la modal ET ouvrir le dialog en une seule action
+    Navigator.pop(context); // Fermer la modal des détails
+    
+    // Attendre que l'animation de fermeture se termine
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      
+      ReportReason? selectedReason;
+      final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Signaler un problème'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Boîte à livres: ${bookBox.name}'),
+                const SizedBox(height: 16),
+                const Text('Raison du signalement:'),
+                const SizedBox(height: 8),
+                ...ReportReason.values.map((reason) => RadioListTile<ReportReason>(
+                  value: reason,
+                  groupValue: selectedReason,
+                  onChanged: (value) => setState(() => selectedReason = value),
+                  title: Text(_getReasonText(reason)),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                )),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optionnelle)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason != null
+                  ? () => _submitReport(bookBox, selectedReason!, descriptionController.text.trim())
+                  : null,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Signaler', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+    }); // Fermer le Future.delayed
+  }
+
+  String _getReasonText(ReportReason reason) {
+    switch (reason) {
+      case ReportReason.duplicate:
+        return 'Lieu en double';
+      case ReportReason.notFound:
+        return 'Boîte inexistante';
+      case ReportReason.inappropriate:
+        return 'Contenu inapproprié';
+      case ReportReason.wrongLocation:
+        return 'Mauvaise localisation';
+      case ReportReason.damaged:
+        return 'Boîte endommagée';
+      case ReportReason.other:
+        return 'Autre raison';
+    }
+  }
+
+  Future<void> _submitReport(BookBox bookBox, ReportReason reason, String description) async {
+    // Traitement simple sans navigation complexe
+    try {
+      final provider = Provider.of<BookBoxProvider>(context, listen: false);
+      Navigator.pop(context); // Fermer seulement le dialog de signalement
+      
+      final success = await provider.reportBookBox(
+        bookBoxId: bookBox.id,
+        reason: reason,
+        description: description.isEmpty ? null : description,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Signalement envoyé. Merci ! Appuyez sur 🔄 pour voir les changements.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(provider.error ?? 'Erreur lors du signalement'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
