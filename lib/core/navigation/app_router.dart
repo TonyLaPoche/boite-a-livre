@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -8,6 +9,24 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/',
+    refreshListenable: AuthChangeNotifier(),
+    redirect: (context, state) {
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoginRoute = state.uri.path == '/';
+      
+      // Si l'utilisateur n'est pas connecté et n'est pas sur la page de login
+      if (user == null && !isLoginRoute) {
+        return '/';
+      }
+      
+      // Si l'utilisateur est connecté et est sur la page de login
+      if (user != null && isLoginRoute) {
+        return '/home';
+      }
+      
+      // Pas de redirection nécessaire
+      return null;
+    },
     routes: [
       // Route d'authentification
       GoRoute(
@@ -39,6 +58,15 @@ class AppRouter {
       ),
     ],
   );
+}
+
+// Notifier pour écouter les changements d'authentification
+class AuthChangeNotifier extends ChangeNotifier {
+  AuthChangeNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
 }
 
 class MainNavigationShell extends StatefulWidget {

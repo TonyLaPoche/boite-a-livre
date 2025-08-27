@@ -38,6 +38,8 @@ dependencies:
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.3
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.2
   google_sign_in: ^6.2.1
   
   # Navigation
@@ -45,6 +47,16 @@ dependencies:
   
   # State Management
   provider: ^6.1.2
+  
+  # Maps & Location
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  geolocator: ^13.0.1
+  permission_handler: ^11.3.1
+  
+  # Image & Utils
+  image_picker: ^1.1.2
+  uuid: ^4.5.1
   
   # UI Components
   flutter_svg: ^2.0.10+1

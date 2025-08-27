@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/providers/auth_provider.dart';
+import '../core/providers/book_box_provider.dart';
 import '../core/navigation/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -12,6 +13,7 @@ class App extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => BookBoxProvider()),
       ],
       child: MaterialApp.router(
         title: 'Boîte à Livre',
