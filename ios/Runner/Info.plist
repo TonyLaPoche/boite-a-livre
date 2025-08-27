@@ -29,17 +29,10 @@
 			<string>REVERSED_CLIENT_ID</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.144616307187-rhilemabn6jfnl6kqqqnpj7hogpt5pnh</string>
+				<string>com.googleusercontent.apps.144616307187-6eqijgkaroliumhv5a77jvtt6jfrm06v</string>
 			</array>
 		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>Sign in with Apple</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>signinwithapple</string>
-			</array>
-		</dict>
+
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
@@ -64,9 +57,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>com.apple.developer.applesignin</key>
-	<array>
-		<string>Default</string>
-	</array>
+
 </dict>
 </plist>

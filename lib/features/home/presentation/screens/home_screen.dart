@@ -21,7 +21,7 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -38,27 +38,22 @@ class SocialAuthButtons extends StatelessWidget {
             
             const SizedBox(height: 16),
             
-            // Bouton Apple
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: authProvider.isLoading ? null : () async {
-                  final success = await authProvider.signInWithApple();
-                  if (success && context.mounted) {
-                    context.go('/home');
-                  }
-                },
-                icon: const Icon(Icons.apple, size: 24),
-                label: Text(
-                  authProvider.isLoading ? 'Connexion...' : 'Continuer avec Apple',
-                  style: const TextStyle(fontSize: 16),
+            // Divider
+            Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'ou',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
+                Expanded(child: Divider()),
+              ],
             ),
             
             // Affichage des erreurs

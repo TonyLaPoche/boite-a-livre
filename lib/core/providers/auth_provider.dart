@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -85,56 +84,90 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Connexion avec Apple
-  Future<bool> signInWithApple() async {
+  // Connexion avec email/mot de passe
+  Future<bool> signInWithEmailPassword(String email, String password) async {
     try {
       _clearError();
       _setLoading(true);
       
-      // Vérifier si Sign in with Apple est disponible
-      final isAvailable = await SignInWithApple.isAvailable();
-      if (!isAvailable) {
-        _setError('Sign in with Apple n\'est pas disponible sur cet appareil');
-        return false;
-      }
-      
-      // Lancer le processus de connexion Apple
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      
-      if (credential.identityToken == null) {
-        _setError('Impossible d\'obtenir le token d\'identité Apple');
-        return false;
-      }
-      
-      // Créer les credentials Firebase
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: credential.identityToken,
-        accessToken: credential.authorizationCode,
-      );
-      
-      // Se connecter à Firebase
-      final UserCredential userCredential = await _auth.signInWithCredential(oauthCredential);
       
       if (userCredential.user != null) {
-        // Mettre à jour le nom d'affichage si disponible
-        if (credential.givenName != null && credential.familyName != null) {
-          final displayName = '${credential.givenName} ${credential.familyName}';
-          await userCredential.user!.updateDisplayName(displayName);
+        _setLoading(false);
+        return true;
+      } else {
+        _setError('Échec de la connexion');
+        return false;
+      }
+    } catch (e) {
+      String errorMessage = 'Erreur lors de la connexion';
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'user-not-found':
+            errorMessage = 'Aucun utilisateur trouvé avec cet email';
+            break;
+          case 'wrong-password':
+            errorMessage = 'Mot de passe incorrect';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Adresse email invalide';
+            break;
+          case 'user-disabled':
+            errorMessage = 'Ce compte a été désactivé';
+            break;
+          default:
+            errorMessage = 'Erreur: ${e.message}';
         }
+      }
+      _setError(errorMessage);
+      return false;
+    }
+  }
+  
+  // Inscription avec email/mot de passe
+  Future<bool> signUpWithEmailPassword(String email, String password, String displayName) async {
+    try {
+      _clearError();
+      _setLoading(true);
+      
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (userCredential.user != null) {
+        // Mettre à jour le nom d'affichage
+        await userCredential.user!.updateDisplayName(displayName);
+        await userCredential.user!.reload();
+        _user = _auth.currentUser;
         
         _setLoading(false);
         return true;
       } else {
-        _setError('Échec de la connexion à Firebase');
+        _setError('Échec de la création du compte');
         return false;
       }
     } catch (e) {
-      _setError('Erreur lors de la connexion avec Apple: $e');
+      String errorMessage = 'Erreur lors de la création du compte';
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'weak-password':
+            errorMessage = 'Le mot de passe est trop faible';
+            break;
+          case 'email-already-in-use':
+            errorMessage = 'Un compte existe déjà avec cet email';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Adresse email invalide';
+            break;
+          default:
+            errorMessage = 'Erreur: ${e.message}';
+        }
+      }
+      _setError(errorMessage);
       return false;
     }
   }
