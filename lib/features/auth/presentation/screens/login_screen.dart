@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/providers/auth_provider.dart';
 import '../widgets/social_auth_buttons.dart';
 import '../widgets/email_auth_form.dart';
 
