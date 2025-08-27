@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../services/location_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -18,9 +19,34 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider() {
     // Écouter les changements d'état d'authentification
     _auth.authStateChanges().listen((User? user) {
+      final wasAuthenticated = _user != null;
       _user = user;
+      
+      // Demander les permissions de localisation quand l'utilisateur se connecte pour la première fois
+      if (!wasAuthenticated && user != null) {
+        _requestLocationPermissionOnLogin();
+      }
+      
       notifyListeners();
     });
+  }
+  
+  // Demander automatiquement les permissions de localisation après connexion
+  Future<void> _requestLocationPermissionOnLogin() async {
+    try {
+      // Attendre un peu pour que l'UI soit prête
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Vérifier si on a déjà les permissions
+      final hasPermission = await LocationService.instance.hasLocationPermission();
+      
+      if (!hasPermission) {
+        // Demander les permissions
+        await LocationService.instance.requestLocationPermission();
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de la demande de permissions: $e');
+    }
   }
 
   // Réinitialiser l'erreur

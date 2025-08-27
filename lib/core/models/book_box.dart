@@ -110,6 +110,8 @@ class Rating {
   final double rating; // 0.0 à 5.0
   final String? comment;
   final DateTime createdAt;
+  final List<String> upVotes; // IDs des utilisateurs qui ont voté +
+  final List<String> downVotes; // IDs des utilisateurs qui ont voté -
 
   const Rating({
     required this.id,
@@ -118,7 +120,12 @@ class Rating {
     required this.rating,
     this.comment,
     required this.createdAt,
+    this.upVotes = const [],
+    this.downVotes = const [],
   });
+
+  // Score de vote (upvotes - downvotes)
+  int get voteScore => upVotes.length - downVotes.length;
 
   // Conversion vers Map pour Firestore
   Map<String, dynamic> toMap() {
@@ -129,6 +136,8 @@ class Rating {
       'rating': rating,
       'comment': comment,
       'createdAt': Timestamp.fromDate(createdAt),
+      'upVotes': upVotes,
+      'downVotes': downVotes,
     };
   }
 
@@ -141,6 +150,8 @@ class Rating {
       rating: map['rating']?.toDouble() ?? 0.0,
       comment: map['comment'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      upVotes: List<String>.from(map['upVotes'] ?? []),
+      downVotes: List<String>.from(map['downVotes'] ?? []),
     );
   }
 

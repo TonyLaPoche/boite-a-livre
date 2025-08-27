@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class LocationService {
   static LocationService? _instance;
@@ -11,14 +10,26 @@ class LocationService {
 
   // Vérifier les permissions de localisation
   Future<bool> hasLocationPermission() async {
-    final permission = await Permission.location.status;
-    return permission == PermissionStatus.granted;
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.always || 
+           permission == LocationPermission.whileInUse;
   }
 
   // Demander les permissions de localisation
   Future<bool> requestLocationPermission() async {
-    final permission = await Permission.location.request();
-    return permission == PermissionStatus.granted;
+    LocationPermission permission = await Geolocator.checkPermission();
+    
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      // Les permissions sont refusées de manière permanente
+      return false;
+    }
+    
+    return permission == LocationPermission.always || 
+           permission == LocationPermission.whileInUse;
   }
 
   // Vérifier si le GPS est activé
@@ -41,9 +52,12 @@ class LocationService {
         }
       }
 
-      // Obtenir la position
+      // Obtenir la position avec les nouveaux paramètres
       _currentPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+        ),
       );
 
       return _currentPosition;

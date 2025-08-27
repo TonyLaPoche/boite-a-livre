@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -86,8 +87,9 @@ class BookBoxProvider extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
+    final bookBoxId = _uuid.v4();
+    
     try {
-      final bookBoxId = _uuid.v4();
       String? photoUrl;
 
       // Upload de l'image si fournie
@@ -123,6 +125,10 @@ class BookBoxProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
+      debugPrint('Erreur détaillée création BookBox: $e');
+      debugPrint('User ID: ${currentUser?.uid}');
+      debugPrint('BookBox ID: $bookBoxId');
+      debugPrint('Name: $name, City: $city');
       _setError('Erreur lors de la création de la boîte à livres: $e');
       return false;
     } finally {
@@ -263,8 +269,12 @@ class BookBoxProvider extends ChangeNotifier {
   }
 
   void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+    if (_isLoading != loading) {
+      _isLoading = loading;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
+    }
   }
 
   void _setError(String error) {
@@ -279,5 +289,98 @@ class BookBoxProvider extends ChangeNotifier {
   void clearError() {
     _clearError();
     notifyListeners();
+  }
+
+  // Voter sur un avis (upvote/downvote)
+  Future<bool> voteOnRating(String ratingId, bool isUpvote) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté pour voter');
+      return false;
+    }
+
+    try {
+      final ratingDoc = await _firestore.collection('ratings').doc(ratingId).get();
+      if (!ratingDoc.exists) {
+        _setError('Avis introuvable');
+        return false;
+      }
+
+      final ratingData = ratingDoc.data()!;
+      List<String> upVotes = List<String>.from(ratingData['upVotes'] ?? []);
+      List<String> downVotes = List<String>.from(ratingData['downVotes'] ?? []);
+      final userId = currentUser!.uid;
+
+      // Retirer le vote existant s'il y en a un
+      upVotes.remove(userId);
+      downVotes.remove(userId);
+
+      // Ajouter le nouveau vote
+      if (isUpvote) {
+        upVotes.add(userId);
+      } else {
+        downVotes.add(userId);
+      }
+
+      // Mettre à jour dans Firestore
+      await _firestore.collection('ratings').doc(ratingId).update({
+        'upVotes': upVotes,
+        'downVotes': downVotes,
+      });
+
+      // Mettre à jour localement
+      await loadBookBoxes();
+      
+      return true;
+    } catch (e) {
+      _setError('Erreur lors du vote: $e');
+      return false;
+    }
+  }
+
+  // Mettre à jour un avis
+  Future<bool> updateRating({
+    required String ratingId,
+    required double newRating,
+    String? newComment,
+  }) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté');
+      return false;
+    }
+
+    try {
+      await _firestore.collection('ratings').doc(ratingId).update({
+        'rating': newRating,
+        'comment': newComment,
+      });
+
+      // Mettre à jour localement
+      await loadBookBoxes();
+      
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la mise à jour: $e');
+      return false;
+    }
+  }
+
+  // Supprimer un avis
+  Future<bool> deleteRating(String ratingId) async {
+    if (currentUser == null) {
+      _setError('Vous devez être connecté');
+      return false;
+    }
+
+    try {
+      await _firestore.collection('ratings').doc(ratingId).delete();
+
+      // Mettre à jour localement
+      await loadBookBoxes();
+      
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la suppression: $e');
+      return false;
+    }
   }
 }

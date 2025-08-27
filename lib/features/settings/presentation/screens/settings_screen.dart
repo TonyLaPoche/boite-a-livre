@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../../../core/services/location_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -7,12 +9,44 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   bool _biometricEnabled = false;
+  bool _locationEnabled = false;
   String _language = 'Français';
   String _fontSize = 'Moyen';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLocationPermission();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Rafraîchir les permissions quand l'app revient au premier plan
+    if (state == AppLifecycleState.resumed) {
+      _checkLocationPermission();
+    }
+  }
+
+  Future<void> _checkLocationPermission() async {
+    final hasPermission = await LocationService.instance.hasLocationPermission();
+    if (mounted) {
+      setState(() {
+        _locationEnabled = hasPermission;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +57,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          // Section Localisation
+          _buildSectionHeader('Localisation'),
+          _buildSwitchTile(
+            'Autoriser la localisation',
+            'Nécessaire pour afficher votre position sur la carte',
+            Icons.location_on_outlined,
+            _locationEnabled,
+            (value) async {
+              if (value) {
+                final granted = await LocationService.instance.requestLocationPermission();
+                if (mounted) {
+                  setState(() {
+                    _locationEnabled = granted;
+                  });
+                  if (!granted) {
+                    _showLocationPermissionDialog();
+                  }
+                }
+              } else {
+                _showLocationPermissionDialog();
+              }
+            },
+          ),
+          
+          _buildListTile(
+            'Paramètres de localisation',
+            'Gérer les permissions dans les paramètres du système',
+            Icons.settings_outlined,
+            () async {
+              await Geolocator.openAppSettings();
+            },
+          ),
+          
+          const SizedBox(height: 24),
+          
           // Section Notifications
           _buildSectionHeader('Notifications'),
           _buildSwitchTile(
@@ -192,6 +261,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Icon(icon),
         trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
         onTap: onTap,
+      ),
+    );
+  }
+
+  void _showLocationPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission de localisation'),
+        content: const Text(
+          'Pour utiliser la carte et afficher votre position, '
+          'l\'application a besoin d\'accéder à votre localisation. '
+          'Vous pouvez modifier cette autorisation dans les paramètres '
+          'de votre appareil.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Plus tard'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await Geolocator.openAppSettings();
+            },
+            child: const Text('Paramètres'),
+          ),
+        ],
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../../core/providers/book_box_provider.dart';
 import '../../../../core/services/location_service.dart';
 import '../widgets/add_book_box_form.dart';
+import '../../../reviews/presentation/screens/reviews_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -18,12 +19,16 @@ class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
   Position? _currentPosition;
   bool _isLoadingLocation = true;
+  bool _mapReady = false;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentLocation();
-    _loadBookBoxes();
+    // Décaler le chargement des boîtes après le build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBookBoxes();
+    });
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -35,13 +40,8 @@ class _MapScreenState extends State<MapScreen> {
           _isLoadingLocation = false;
         });
 
-        // Centrer la carte sur la position actuelle
-        if (position != null) {
-          _mapController.move(
-            LatLng(position.latitude, position.longitude),
-            15.0,
-          );
-        }
+        // Centrer la carte seulement quand elle est prête
+        _centerMapIfReady();
       }
     } catch (e) {
       if (mounted) {
@@ -55,7 +55,24 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _centerMapIfReady() {
+    if (_mapReady && _currentPosition != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _mapController.move(
+            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            15.0,
+          );
+        } catch (e) {
+          // Ignorer l'erreur si la carte n'est pas encore prête
+          debugPrint('Carte pas encore prête: $e');
+        }
+      });
+    }
+  }
+
   Future<void> _loadBookBoxes() async {
+    if (!mounted) return;
     final provider = Provider.of<BookBoxProvider>(context, listen: false);
     await provider.loadBookBoxes();
   }
@@ -81,12 +98,16 @@ class _MapScreenState extends State<MapScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
-            onPressed: _currentPosition != null
+            onPressed: _currentPosition != null && _mapReady
                 ? () {
-                    _mapController.move(
-                      LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                      15.0,
-                    );
+                    try {
+                      _mapController.move(
+                        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                        15.0,
+                      );
+                    } catch (e) {
+                      debugPrint('Erreur centrage carte: $e');
+                    }
                   }
                 : null,
           ),
@@ -123,6 +144,13 @@ class _MapScreenState extends State<MapScreen> {
                         initialZoom: 13.0,
                         onTap: (tapPosition, point) {
                           _showAddBookBoxForm(point);
+                        },
+                        onMapReady: () {
+                          setState(() {
+                            _mapReady = true;
+                          });
+                          // Centrer la carte maintenant qu'elle est prête
+                          _centerMapIfReady();
                         },
                       ),
                       children: [
@@ -256,17 +284,39 @@ class _MapScreenState extends State<MapScreen> {
             ],
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(
-                  onPressed: () => _addRating(bookBox),
-                  child: const Text('Noter'),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReviewsScreen(bookBox: bookBox),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.rate_review),
+                    label: const Text('Lire les avis'),
+                  ),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Fermer'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _addRating(bookBox),
+                    icon: const Icon(Icons.star_outline),
+                    label: const Text('Noter'),
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fermer'),
+              ),
             ),
           ],
         ),

@@ -57,6 +57,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
+	<!-- Permissions pour la localisation -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cette application utilise la localisation pour afficher votre position sur la carte des boîtes à livres.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Cette application utilise la localisation pour afficher votre position sur la carte des boîtes à livres.</string>
+	
+	<!-- Permissions pour l'appareil photo -->
+	<key>NSCameraUsageDescription</key>
+	<string>Cette application utilise l'appareil photo pour prendre des photos des boîtes à livres.</string>
+	
+	<!-- Permissions pour la galerie photo -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cette application accède à vos photos pour sélectionner des images de boîtes à livres.</string>
 
 </dict>
 </plist>
