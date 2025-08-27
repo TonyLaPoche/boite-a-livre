@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import '../models/book_box.dart';
+import '../services/user_service.dart';
 
 class BookBoxProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -168,15 +169,25 @@ class BookBoxProvider extends ChangeNotifier {
       return false;
     }
 
+    // Vérifier si l'utilisateur a déjà noté cette BookBox
+    final hasAlreadyRated = await UserService().hasUserRatedBookBox(bookBoxId);
+    if (hasAlreadyRated) {
+      _setError('Vous avez déjà noté cette boîte à livres');
+      return false;
+    }
+
     _setLoading(true);
     _clearError();
 
     try {
       final ratingId = _uuid.v4();
+      final userDisplayName = await UserService().getDisplayNameForReviews();
+      
       final newRating = Rating(
         id: ratingId,
         bookBoxId: bookBoxId,
         userId: currentUser!.uid,
+        userDisplayName: userDisplayName,
         rating: rating,
         comment: comment,
         createdAt: DateTime.now(),

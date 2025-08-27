@@ -1,5 +1,56 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+enum BookBoxStatus {
+  normal,      // Statut normal
+  reported,    // Signalée par un utilisateur
+  verified,    // Vérifiée par le propriétaire
+}
+
+enum ReportReason {
+  duplicate,      // Lieu en double
+  notFound,       // Boîte inexistante
+  inappropriate,  // Contenu inapproprié
+  wrongLocation,  // Mauvaise localisation
+  damaged,        // Boîte endommagée
+  other,          // Autre raison
+}
+
+class ReportIncident {
+  final String id;
+  final String reportedBy;
+  final ReportReason reason;
+  final String? description;
+  final DateTime reportedAt;
+
+  const ReportIncident({
+    required this.id,
+    required this.reportedBy,
+    required this.reason,
+    this.description,
+    required this.reportedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'reportedBy': reportedBy,
+      'reason': reason.name,
+      'description': description,
+      'reportedAt': Timestamp.fromDate(reportedAt),
+    };
+  }
+
+  factory ReportIncident.fromMap(Map<String, dynamic> map) {
+    return ReportIncident(
+      id: map['id'],
+      reportedBy: map['reportedBy'],
+      reason: ReportReason.values.firstWhere((e) => e.name == map['reason']),
+      description: map['description'],
+      reportedAt: (map['reportedAt'] as Timestamp).toDate(),
+    );
+  }
+}
+
 class BookBox {
   final String id;
   final String name;
@@ -10,6 +61,8 @@ class BookBox {
   final String createdBy;
   final DateTime createdAt;
   final List<Rating> ratings;
+  final BookBoxStatus status;
+  final List<ReportIncident> reports;
 
   const BookBox({
     required this.id,
@@ -21,6 +74,8 @@ class BookBox {
     required this.createdBy,
     required this.createdAt,
     this.ratings = const [],
+    this.status = BookBoxStatus.normal,
+    this.reports = const [],
   });
 
   // Calcul de la note moyenne
@@ -40,6 +95,8 @@ class BookBox {
       'photoUrl': photoUrl,
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
+      'status': status.name,
+      'reports': reports.map((r) => r.toMap()).toList(),
     };
   }
 
@@ -54,6 +111,12 @@ class BookBox {
       photoUrl: map['photoUrl'],
       createdBy: map['createdBy'] ?? '',
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      status: map['status'] != null 
+          ? BookBoxStatus.values.firstWhere((e) => e.name == map['status'], orElse: () => BookBoxStatus.normal)
+          : BookBoxStatus.normal,
+      reports: map['reports'] != null 
+          ? (map['reports'] as List).map((r) => ReportIncident.fromMap(r)).toList()
+          : [],
     );
   }
 
@@ -107,6 +170,7 @@ class Rating {
   final String id;
   final String bookBoxId;
   final String userId;
+  final String userDisplayName; // Nom à afficher pour cet avis
   final double rating; // 0.0 à 5.0
   final String? comment;
   final DateTime createdAt;
@@ -117,6 +181,7 @@ class Rating {
     required this.id,
     required this.bookBoxId,
     required this.userId,
+    required this.userDisplayName,
     required this.rating,
     this.comment,
     required this.createdAt,
@@ -133,6 +198,7 @@ class Rating {
       'id': id,
       'bookBoxId': bookBoxId,
       'userId': userId,
+      'userDisplayName': userDisplayName,
       'rating': rating,
       'comment': comment,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -147,6 +213,7 @@ class Rating {
       id: map['id'] ?? '',
       bookBoxId: map['bookBoxId'] ?? '',
       userId: map['userId'] ?? '',
+      userDisplayName: map['userDisplayName'] ?? 'Utilisateur',
       rating: map['rating']?.toDouble() ?? 0.0,
       comment: map['comment'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),

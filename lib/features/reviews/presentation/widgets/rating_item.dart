@@ -74,6 +74,11 @@ class RatingItem extends StatelessWidget {
                   '${rating.rating.toStringAsFixed(1)}/5',
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  'par ${rating.userDisplayName}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
                 const Spacer(),
                 
                 // Bouton d'édition pour le propriétaire

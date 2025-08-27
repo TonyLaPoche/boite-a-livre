@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/location_service.dart';
+import '../services/user_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -44,6 +45,9 @@ class AuthProvider extends ChangeNotifier {
         // Demander les permissions
         await LocationService.instance.requestLocationPermission();
       }
+      
+      // Initialiser/mettre à jour le profil utilisateur
+      await UserService().getCurrentUserProfile();
     } catch (e) {
       debugPrint('Erreur lors de la demande de permissions: $e');
     }
@@ -209,6 +213,9 @@ class AuthProvider extends ChangeNotifier {
       
       // Déconnexion de Firebase
       await _auth.signOut();
+      
+      // Nettoyer le cache du profil utilisateur
+      UserService().clearCache();
       
       _setLoading(false);
     } catch (e) {
