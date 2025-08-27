@@ -46,7 +46,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	
-	<!-- Configuration Google Sign-In -->
+	<!-- Configuration Google Sign-In et Sign in with Apple -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -54,14 +54,9 @@
 			<string>REVERSED_CLIENT_ID</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.961144753286-7ok11g2s6jil8q414bsd28dju433qn7f</string>
+				<string>com.googleusercontent.apps.144616307187-rhilemabn6jfnl6kqqqnpj7hogpt5pnh</string>
 			</array>
 		</dict>
-	</array>
-	
-	<!-- Configuration Sign in with Apple -->
-	<key>CFBundleURLTypes</key>
-	<array>
 		<dict>
 			<key>CFBundleURLName</key>
 			<string>Sign in with Apple</string>
@@ -70,6 +65,12 @@
 				<string>signinwithapple</string>
 			</array>
 		</dict>
+	</array>
+	
+	<!-- Configuration Entitlements pour Sign in with Apple -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
 	</array>
 </dict>
 </plist>
